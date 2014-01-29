@@ -220,9 +220,8 @@ int free_irq_gpio(struct Irqmap leds_gpiostruct[], int size) {
 
 static int proc_write(struct file *file, const char __user *buffer, unsigned long count, void *data)
 {
-long myLong;
-char buff[10];
-
+	long myLong;
+	char buff[10];
 	if (count < 0 || count > 10)
 		return -EFAULT;
 
@@ -233,10 +232,8 @@ char buff[10];
 
     if (kstrtol(buff, 10, &myLong) == 0)
     {
-	printk("We have a number %d!\n", (int) myLong);
+		printk("We have a number %d!\n", (int) myLong);
     }
-
-  
 	pid = (int) myLong;
 
 	if(pid != 0) 
