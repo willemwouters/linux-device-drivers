@@ -47,7 +47,7 @@ static int return_size = sizeof(return_string);
 //////////// IRQ /////////////////
 short int irq_any_gpio    = 0;
 #define DRIVER_AUTHOR "Willem Wouters <willemwouters@gmail.com>"
-#define DRIVER_DESC   "Tnterrupt Test"
+#define DRIVER_DESC   "GPIO Interrupt driver"
 
 int open(struct inode *inode, struct file *filp) {
    printk(KERN_INFO "%s: open:\n", device_name); 
