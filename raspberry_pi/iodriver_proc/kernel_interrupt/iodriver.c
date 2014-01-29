@@ -17,6 +17,8 @@
 #include <linux/uaccess.h>
 #include "proc_misc.h"
 #include "gpio_misc.h"
+
+
 int structsize = 16;
  Irqmap irqmaps[] = {
 		{ 0, { 17, GPIOF_OUT_INIT_HIGH, "Power LED" } },
@@ -44,26 +46,22 @@ static int return_size = sizeof(return_string);
 
 //////////// IRQ /////////////////
 short int irq_any_gpio    = 0;
-#define DRIVER_AUTHOR "Igor <hardware.coder@gmail.com>"
+#define DRIVER_AUTHOR "Willem Wouters <willemwouters@gmail.com>"
 #define DRIVER_DESC   "Tnterrupt Test"
 
-
 int open(struct inode *inode, struct file *filp) {
-   printk(KERN_INFO "open:\n"); 
+   printk(KERN_INFO "%s: open:\n", device_name); 
    return 0;
 }
 
 int release(struct inode *inode, struct file *filp) {
-    printk(KERN_INFO "release:\n");
+    printk(KERN_INFO "%s: release:\n", device_name);
     return 0;
 }
 
-
-
-
 static ssize_t read(struct file *file_ptr, char __user *user_buffer, size_t count, loff_t *position)
 {
-    printk( KERN_NOTICE "Simple-driver: Device file is read at offset = %i, read bytes count = %u" , (int)*position , (unsigned int)count );
+    printk( KERN_NOTICE "%s: Device file is read at offset = %i, read bytes count = %u" , device_name, (int)*position , (unsigned int)count );
 
     wait_event_interruptible(wq, flag != 0); 
     flag = 0;   /* what happens if this is set to 0? */
@@ -129,7 +127,7 @@ static irqreturn_t r_irq_handler(int irq, void *dev_id, struct pt_regs *regs) {
     }
     wake_up_interruptible(&wq);
     
-    printk(KERN_INFO "Interrupt PID=%d [%d] %d %s for device %s was triggered, val: %d!.\n", pid,  irq, irqmaps[gpio_num].irq, irqmaps[gpio_num].gpiostruct.label, (char *) dev_id, val);
+    printk(KERN_INFO "%s: Interrupt PID=%d [%d] %d %s for device %s was triggered, val: %d!.\n", device_name, pid,  irq, irqmaps[gpio_num].irq, irqmaps[gpio_num].gpiostruct.label, (char *) dev_id, val);
     // restore hard interrupts
     local_irq_restore(flags);
     return IRQ_HANDLED;
@@ -154,15 +152,15 @@ int driver_init (void) {
     kernel_cdev = cdev_alloc();    
     kernel_cdev->ops = &fops; 
     kernel_cdev->owner = THIS_MODULE;
-    printk(KERN_INFO "Simple-driver: starting driver \n");
+    printk(KERN_INFO "%s: starting driver \n", device_name);
     ret = register_chrdev( 0, device_name, &fops );
     if( ret < 0 )
     {
-        printk( KERN_INFO "Simple-driver:  can\'t register character device with errorcode = %i", ret );
+        printk( KERN_INFO "%s:  can\'t register character device with errorcode = %i", device_name, ret );
         return ret;
     }
     device_file_major_number = ret;
-    printk( KERN_INFO "Simple-driver: registered character device with major number = %i and minor numbers 0...255 \r\n" , device_file_major_number );
+    printk( KERN_INFO "%s: registered character device with major number = %i and minor numbers 0...255 \r\n" , device_name, device_file_major_number );
 
     ///////////////// IRQ //////////////////////////////
     err = gpio_request_arr(irqmaps, sizeof(irqmaps) / structsize);
@@ -184,7 +182,7 @@ int driver_init (void) {
 }
 
 void driver_cleanup(void) {
-    printk(KERN_INFO "Simple-driver: unloading driver\n");
+    printk(KERN_INFO "%s: unloading driver\n", device_name);
     unregister_chrdev_region(device_file_major_number, 1);
     cdev_del(kernel_cdev);
     free_irq_gpio(irqmaps, sizeof(irqmaps) / structsize);
