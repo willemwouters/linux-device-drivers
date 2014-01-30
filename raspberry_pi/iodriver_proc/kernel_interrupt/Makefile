@@ -17,5 +17,8 @@ default:
 clean: 
 	rm *.o; rm *.ko; make ARCH=$(ARCH) CROSS_COMPILE=${CCPREFIX} -C $(KDIR) SUBDIRS=$(BASE) clean
 
+transfer:
+	scp ./iodriver.ko root@192.168.80.37:/iodriver.ko
+
 $(TARGET).o : $(OBJS)
 

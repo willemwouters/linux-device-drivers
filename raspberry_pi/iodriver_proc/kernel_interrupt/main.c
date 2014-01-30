@@ -3,6 +3,7 @@
 #include <linux/fs.h>
 #include <asm/uaccess.h>
 #include <linux/semaphore.h>
+#include <linux/device.h>
 #include <linux/cdev.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
@@ -15,6 +16,8 @@
 #include <asm/siginfo.h>	//siginfo
 #include <linux/rcupdate.h>	//rcu_read_lock
 #include <linux/sched.h>	//find_task_by_pid_type
+
+
 
 #include "gpio_misc.h"
 #include "proc_misc.h"
@@ -145,11 +148,13 @@ struct file_operations fops = {
    .release = release
 };
 
+struct class *cl;
+static dev_t mod2_dev;
 
-int driver_init (void) {
+int iodriver_init (void) {
     int ret;
     int err;
-   
+    
     ///////////////// CHAR DEV ///////////////////////
     kernel_cdev = cdev_alloc();    
     kernel_cdev->ops = &fops; 
@@ -163,6 +168,20 @@ int driver_init (void) {
     }
     device_file_major_number = ret;
     printk( KERN_INFO "%s: registered character device with major number = %i and minor numbers 0...255 \r\n" , device_name, device_file_major_number );
+
+
+    if ((cl = class_create(THIS_MODULE, "iodriver")) == NULL)    //$ls /sys/class
+    {
+        unregister_chrdev_region(device_file_major_number, 1);
+        return -1;
+    }
+    if (device_create(cl, NULL, MKDEV(device_file_major_number, 0), NULL, "iodriver") == NULL) //$ls /dev/
+    {
+        class_destroy(cl);
+        unregister_chrdev_region(device_file_major_number, 1);
+        return -1;
+    }
+
 
     ///////////////// IRQ //////////////////////////////
     err = gpio_request_arr(irqmaps, sizeof(irqmaps) / structsize);
@@ -180,16 +199,19 @@ int driver_init (void) {
     return 0;
 }
 
-void driver_cleanup(void) {
+void iodriver_cleanup(void) {
     printk(KERN_INFO "%s: unloading driver\n", device_name);
     unregister_chrdev_region(device_file_major_number, 1);
     cdev_del(kernel_cdev);
     free_irq_gpio(irqmaps, sizeof(irqmaps) / structsize);
     procm_delete(proc_name);
+
+  device_destroy(cl, device_file_major_number);
+  class_destroy(cl);
 }
 
-module_init(driver_init);
-module_exit(driver_cleanup);
+module_init(iodriver_init);
+module_exit(iodriver_cleanup);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_AUTHOR);
