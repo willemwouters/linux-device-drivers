@@ -7,6 +7,7 @@
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
+#include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/init.h> 
 #include <linux/interrupt.h>
@@ -14,9 +15,11 @@
 #include <asm/siginfo.h>	//siginfo
 #include <linux/rcupdate.h>	//rcu_read_lock
 #include <linux/sched.h>	//find_task_by_pid_type
-#include <linux/uaccess.h>
-#include "proc_misc.h"
+
 #include "gpio_misc.h"
+#include "proc_misc.h"
+#include "signal_misc.h"
+
 
 
 int structsize = 16;
@@ -29,10 +32,10 @@ int structsize = 16;
 
 
 //////////// PROC DEV  //////////
-#define SIG_TEST 44	// we choose 44 as our signal number (real-time signals are in the range of 33 to 64)
 struct proc_dir_entry *proc_entry;
 const char * proc_name = "iodriverpid";
 int pid = 0;
+int *proc_pid;
 
 //////////// CHAR DEV ///////////
 static int device_file_major_number = 0;
@@ -59,18 +62,18 @@ int release(struct inode *inode, struct file *filp) {
     return 0;
 }
 
+
 static ssize_t read(struct file *file_ptr, char __user *user_buffer, size_t count, loff_t *position)
 {
     printk( KERN_NOTICE "%s: Device file is read at offset = %i, read bytes count = %u" , device_name, (int)*position , (unsigned int)count );
 
     wait_event_interruptible(wq, flag != 0); 
-    flag = 0;   /* what happens if this is set to 0? */
+    flag = 0;  
 
     /* If position is behind the end of a file we have nothing to read, start all over */
     if( *position >= return_size ) {
         *position -= return_size;
     }
-
 
     /* If a user tries to read more than we have, read only 	as many bytes as we have */
     if( *position + count > return_size)
@@ -102,7 +105,7 @@ ssize_t write(struct file *filp, const char *b, size_t len, loff_t *o) {
 
 
 
-static irqreturn_t r_irq_handler(int irq, void *dev_id, struct pt_regs *regs) {
+irqreturn_t r_irq_handler(int irq, void *dev_id, struct pt_regs *regs) {
     unsigned long flags;
     int i;
     int gpio_num = -1;
@@ -132,7 +135,6 @@ static irqreturn_t r_irq_handler(int irq, void *dev_id, struct pt_regs *regs) {
     local_irq_restore(flags);
     return IRQ_HANDLED;
 }
-
 
 
 struct file_operations fops = { 
@@ -167,17 +169,14 @@ int driver_init (void) {
     if (err) {
         return -1;
     }
-
     err = request_irq_array(irqmaps, sizeof(irqmaps) / structsize);
     if(err) {
         return -1;
     }
 
-    ///////////////// PROC //////////////////////////
-    proc_entry = proc_create(proc_name, 0444, NULL, &proc_fops);
-    if (!proc_entry)
-        return -EPERM;
-
+    ////////////////////// PROC ////////////////////
+    proc_pid = &pid;
+    proc_entry = procm_create(proc_name);
     return 0;
 }
 
@@ -186,7 +185,7 @@ void driver_cleanup(void) {
     unregister_chrdev_region(device_file_major_number, 1);
     cdev_del(kernel_cdev);
     free_irq_gpio(irqmaps, sizeof(irqmaps) / structsize);
-    remove_proc_entry(proc_name, NULL);
+    procm_delete(proc_name);
 }
 
 module_init(driver_init);

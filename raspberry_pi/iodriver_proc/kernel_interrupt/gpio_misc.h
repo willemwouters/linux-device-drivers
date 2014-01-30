@@ -1,3 +1,8 @@
+#ifndef _GPIO_MISC_H
+#define _GPIO_MISC_H
+
+#include <linux/gpio.h>
+
 
 
 typedef struct Irqmap {
@@ -13,4 +18,4 @@ int gpio_request_arr(struct Irqmap leds_gpiostruct[], int size);
 
 int request_irq_array(struct Irqmap leds_gpiostruct[], int size);
 
-static int send_signal(int myPid);
+#endif //_GPIO_MISC_H
