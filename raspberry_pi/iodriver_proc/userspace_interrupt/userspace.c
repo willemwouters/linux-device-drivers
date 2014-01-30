@@ -30,7 +30,7 @@ void receiveData(int n, siginfo_t *info, void *unused) {
 	char buffer[25];
 	int port = 0;
 	int res;
-	res = open_port("/dev/simple4", port);
+	res = open_port("/dev/iodriver", port); 
 	if(res != 0) {
 		perror("open_port: Unable to open port - ");
 		return;
